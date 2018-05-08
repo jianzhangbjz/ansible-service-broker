@@ -22,7 +22,7 @@ import (
 
 	automationbrokerv1 "github.com/automationbroker/broker-client-go/client/clientset/versioned/typed/automationbroker/v1alpha1"
 	v1 "github.com/automationbroker/broker-client-go/pkg/apis/automationbroker/v1alpha1"
-	"github.com/automationbroker/bundle-lib/apb"
+	"github.com/automationbroker/bundle-lib/bundle"
 	"github.com/automationbroker/bundle-lib/clients"
 	"github.com/automationbroker/bundle-lib/crd"
 	logutil "github.com/openshift/ansible-service-broker/pkg/util/logging"
@@ -64,7 +64,7 @@ func NewDao(namespace string) (*Dao, error) {
 }
 
 // GetSpec - Retrieve the spec from the k8s API.
-func (d *Dao) GetSpec(id string) (*apb.Spec, error) {
+func (d *Dao) GetSpec(id string) (*bundle.Spec, error) {
 	log.Debugf("get spec: %v", id)
 	s, err := d.client.Bundles(d.namespace).Get(id, metav1.GetOptions{})
 	if err != nil {
@@ -75,7 +75,7 @@ func (d *Dao) GetSpec(id string) (*apb.Spec, error) {
 }
 
 // SetSpec - set spec for an id in the kvp API.
-func (d *Dao) SetSpec(id string, spec *apb.Spec) error {
+func (d *Dao) SetSpec(id string, spec *bundle.Spec) error {
 	log.Debugf("set spec: %v", id)
 	bundleSpec, err := crd.ConvertSpecToBundle(spec)
 	if err != nil {
@@ -99,7 +99,7 @@ func (d *Dao) DeleteSpec(specID string) error {
 }
 
 // BatchSetSpecs - set specs based on SpecManifest in the kvp API.
-func (d *Dao) BatchSetSpecs(specs apb.SpecManifest) error {
+func (d *Dao) BatchSetSpecs(specs bundle.SpecManifest) error {
 	for id, spec := range specs {
 		err := d.SetSpec(id, spec)
 		if err != nil {
@@ -111,14 +111,14 @@ func (d *Dao) BatchSetSpecs(specs apb.SpecManifest) error {
 }
 
 // BatchGetSpecs - Retrieve all the specs for dir.
-func (d *Dao) BatchGetSpecs(dir string) ([]*apb.Spec, error) {
+func (d *Dao) BatchGetSpecs(dir string) ([]*bundle.Spec, error) {
 	log.Debugf("Dao::BatchGetSpecs")
 	l, err := d.client.Bundles(d.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		log.Errorf("unable to get batch specs - %v", err)
 		return nil, err
 	}
-	specs := []*apb.Spec{}
+	specs := []*bundle.Spec{}
 	// capture all the errors and still try to save the correct bundles
 	errs := arrayErrors{}
 	for _, b := range l.Items {
@@ -136,7 +136,7 @@ func (d *Dao) BatchGetSpecs(dir string) ([]*apb.Spec, error) {
 }
 
 // BatchDeleteSpecs - set specs based on SpecManifest in the kvp API.
-func (d *Dao) BatchDeleteSpecs(specs []*apb.Spec) error {
+func (d *Dao) BatchDeleteSpecs(specs []*bundle.Spec) error {
 	for _, spec := range specs {
 		err := d.DeleteSpec(spec.ID)
 		if err != nil {
@@ -147,7 +147,7 @@ func (d *Dao) BatchDeleteSpecs(specs []*apb.Spec) error {
 }
 
 // GetServiceInstance - Retrieve specific service instance from the kvp API.
-func (d *Dao) GetServiceInstance(id string) (*apb.ServiceInstance, error) {
+func (d *Dao) GetServiceInstance(id string) (*bundle.ServiceInstance, error) {
 	log.Debugf("get service instance: %v", id)
 	servInstance, err := d.client.BundleInstances(d.namespace).Get(id, metav1.GetOptions{})
 	if err != nil {
@@ -161,7 +161,7 @@ func (d *Dao) GetServiceInstance(id string) (*apb.ServiceInstance, error) {
 }
 
 // SetServiceInstance - Set service instance for an id in the kvp API.
-func (d *Dao) SetServiceInstance(id string, serviceInstance *apb.ServiceInstance) error {
+func (d *Dao) SetServiceInstance(id string, serviceInstance *bundle.ServiceInstance) error {
 	log.Debugf("set service instance: %v", id)
 	spec, err := crd.ConvertServiceInstanceToCRD(serviceInstance)
 	if err != nil {
@@ -202,7 +202,7 @@ func (d *Dao) DeleteServiceInstance(id string) error {
 }
 
 // GetBindInstance - Retrieve a specific bind instance from the kvp API
-func (d *Dao) GetBindInstance(id string) (*apb.BindInstance, error) {
+func (d *Dao) GetBindInstance(id string) (*bundle.BindInstance, error) {
 	log.Debugf("get binding instance: %v", id)
 	bi, err := d.client.BundleBindings(d.namespace).Get(id, metav1.GetOptions{})
 	if err != nil {
@@ -212,7 +212,7 @@ func (d *Dao) GetBindInstance(id string) (*apb.BindInstance, error) {
 }
 
 // SetBindInstance - Set the bind instance for id in the kvp API.
-func (d *Dao) SetBindInstance(id string, bindInstance *apb.BindInstance) error {
+func (d *Dao) SetBindInstance(id string, bindInstance *bundle.BindInstance) error {
 	log.Debugf("set binding instance: %v", id)
 	b, err := crd.ConvertServiceBindingToCRD(bindInstance)
 	if err != nil {
@@ -258,11 +258,11 @@ func (d *Dao) DeleteBindInstance(id string) error {
 }
 
 // SetState - Set the Job State in the kvp API for id.
-func (d *Dao) SetState(instanceID string, state apb.JobState) (string, error) {
+func (d *Dao) SetState(instanceID string, state bundle.JobState) (string, error) {
 	log.Debugf("set job state for instance: %v token: %v", instanceID, state.Token)
 	n := metav1.Now()
 	switch state.Method {
-	case apb.JobMethodBind, apb.JobMethodUnbind:
+	case bundle.JobMethodBind, bundle.JobMethodUnbind:
 		// get the binding based on instance ID //update the job based on the token.
 		bi, err := d.client.BundleBindings(d.namespace).Get(instanceID, metav1.GetOptions{})
 		if err != nil {
@@ -299,7 +299,7 @@ func (d *Dao) SetState(instanceID string, state apb.JobState) (string, error) {
 
 			return state.Token, err
 		}
-	case apb.JobMethodUpdate, apb.JobMethodDeprovision, apb.JobMethodProvision:
+	case bundle.JobMethodUpdate, bundle.JobMethodDeprovision, bundle.JobMethodProvision:
 		// get the binding based on instance id //update the job based on the token
 		si, err := d.client.BundleInstances(d.namespace).Get(instanceID, metav1.GetOptions{})
 		if err != nil {
@@ -335,13 +335,13 @@ func (d *Dao) SetState(instanceID string, state apb.JobState) (string, error) {
 }
 
 // GetState - Retrieve a job state from the kvp API for an ID and Token.
-func (d *Dao) GetState(id string, token string) (apb.JobState, error) {
+func (d *Dao) GetState(id string, token string) (bundle.JobState, error) {
 	// get the binding based on instance ID //update the job based on the token.
 	var job v1.Job
 	bi, err := d.client.BundleBindings(d.namespace).Get(id, metav1.GetOptions{})
 	if err != nil && !d.IsNotFoundError(err) {
 		log.Errorf("Could not find binding %v associated with job state %v - %v", id, token, err)
-		return apb.JobState{}, fmt.Errorf("Could not find binding %v associated with job state %v",
+		return bundle.JobState{}, fmt.Errorf("Could not find binding %v associated with job state %v",
 			id, token)
 	} else if d.IsNotFoundError(err) {
 		si, err := d.client.BundleInstances(d.namespace).Get(id, metav1.GetOptions{})
@@ -349,28 +349,28 @@ func (d *Dao) GetState(id string, token string) (apb.JobState, error) {
 			log.Errorf("Could not find instance %v associated with job state %v - %v",
 				id, token, err)
 
-			return apb.JobState{}, err
+			return bundle.JobState{}, err
 		}
 		j, ok := si.Status.Jobs[token]
 		if !ok {
 			log.Errorf("Unable to get the job state: %v - %v", token, err)
-			return apb.JobState{}, fmt.Errorf("unable to find job state %v", token)
+			return bundle.JobState{}, fmt.Errorf("unable to find job state %v", token)
 		}
 		job = j
 	} else {
 		if bi.Status.Jobs == nil {
 			log.Errorf("binding %v has no associated job states: %v - %v", id, token, err)
-			return apb.JobState{}, err
+			return bundle.JobState{}, err
 		}
 		j, ok := bi.Status.Jobs[token]
 		if !ok {
 			log.Errorf("binding %v does not have job state: %v - %v", id, token, err)
-			return apb.JobState{}, fmt.Errorf("unable to find job state %v", token)
+			return bundle.JobState{}, fmt.Errorf("unable to find job state %v", token)
 		}
 
 		job = j
 	}
-	return apb.JobState{
+	return bundle.JobState{
 		Description: job.Description,
 		Method:      crd.ConvertJobMethodToAPB(job.Method),
 		Podname:     job.Podname,
@@ -381,16 +381,16 @@ func (d *Dao) GetState(id string, token string) (apb.JobState, error) {
 }
 
 // GetStateByKey - Retrieve a job state from the kvp API for a job key
-func (d *Dao) GetStateByKey(key string) (apb.JobState, error) {
+func (d *Dao) GetStateByKey(key string) (bundle.JobState, error) {
 	bi, err := d.client.BundleBindings(d.namespace).Get(key, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Unable to get the job state: %v - %v", key, err)
-		return apb.JobState{}, err
+		return bundle.JobState{}, err
 	}
 	for token, j := range bi.Status.Jobs {
 		// Assuming a single bind job happens per binding instance.
 		if j.Method == v1.JobMethodBind {
-			return apb.JobState{
+			return bundle.JobState{
 				Description: j.Description,
 				Method:      crd.ConvertJobMethodToAPB(j.Method),
 				Podname:     j.Podname,
@@ -400,7 +400,7 @@ func (d *Dao) GetStateByKey(key string) (apb.JobState, error) {
 			}, nil
 		}
 	}
-	return apb.JobState{}, &apierrors.StatusError{ErrStatus: metav1.Status{
+	return bundle.JobState{}, &apierrors.StatusError{ErrStatus: metav1.Status{
 		Status: metav1.StatusFailure,
 		Code:   http.StatusNotFound,
 		Reason: metav1.StatusReasonNotFound,
@@ -408,7 +408,7 @@ func (d *Dao) GetStateByKey(key string) (apb.JobState, error) {
 }
 
 // FindJobStateByState - Retrieve all the jobs that match the specified state
-func (d *Dao) FindJobStateByState(state apb.State) ([]apb.RecoverStatus, error) {
+func (d *Dao) FindJobStateByState(state bundle.State) ([]bundle.RecoverStatus, error) {
 
 	sis, err := d.client.BundleInstances(d.namespace).List(metav1.ListOptions{})
 	if err != nil {
@@ -423,13 +423,13 @@ func (d *Dao) FindJobStateByState(state apb.State) ([]apb.RecoverStatus, error) 
 	}
 
 	// build the status information for recovery purposes
-	rss := []apb.RecoverStatus{}
+	rss := []bundle.RecoverStatus{}
 
 	for _, si := range sis.Items {
 		for token, j := range si.Status.Jobs {
 			if state == crd.ConvertStateToAPB(j.State) {
 				rss = append(rss,
-					apb.RecoverStatus{InstanceID: uuid.Parse(si.GetName()), State: apb.JobState{
+					bundle.RecoverStatus{InstanceID: uuid.Parse(si.GetName()), State: bundle.JobState{
 						Description: j.Description,
 						Method:      crd.ConvertJobMethodToAPB(j.Method),
 						Podname:     j.Podname,
@@ -445,7 +445,7 @@ func (d *Dao) FindJobStateByState(state apb.State) ([]apb.RecoverStatus, error) 
 		for token, j := range bi.Status.Jobs {
 			if state == crd.ConvertStateToAPB(j.State) {
 				rss = append(rss,
-					apb.RecoverStatus{InstanceID: uuid.Parse(bi.GetName()), State: apb.JobState{
+					bundle.RecoverStatus{InstanceID: uuid.Parse(bi.GetName()), State: bundle.JobState{
 						Description: j.Description,
 						Method:      crd.ConvertJobMethodToAPB(j.Method),
 						Podname:     j.Podname,
@@ -461,22 +461,22 @@ func (d *Dao) FindJobStateByState(state apb.State) ([]apb.RecoverStatus, error) 
 }
 
 // GetSvcInstJobsByState - Lookup all jobs of a given state for a specific instance
-func (d *Dao) GetSvcInstJobsByState(ID string, state apb.State) ([]apb.JobState, error) {
+func (d *Dao) GetSvcInstJobsByState(ID string, state bundle.State) ([]bundle.JobState, error) {
 	// get the binding based on instance ID //update the job based on the token.
-	jobs := []apb.JobState{}
+	jobs := []bundle.JobState{}
 	bi, err := d.client.BundleBindings(d.namespace).Get(ID, metav1.GetOptions{})
 	if err != nil && !d.IsNotFoundError(err) {
 		log.Errorf("Unable to get the job state: %v - %v", ID, err)
-		return []apb.JobState{}, fmt.Errorf("unable to find job state %v", ID)
+		return []bundle.JobState{}, fmt.Errorf("unable to find job state %v", ID)
 	} else if d.IsNotFoundError(err) {
 		si, err := d.client.BundleInstances(d.namespace).Get(ID, metav1.GetOptions{})
 		if err != nil {
 			log.Errorf("Unable to get the job state: %v - %v", ID, err)
-			return []apb.JobState{}, err
+			return []bundle.JobState{}, err
 		}
 		for token, job := range si.Status.Jobs {
 			if job.State == crd.ConvertStateToCRD(state) {
-				jobs = append(jobs, apb.JobState{
+				jobs = append(jobs, bundle.JobState{
 					Description: job.Description,
 					Method:      crd.ConvertJobMethodToAPB(job.Method),
 					Podname:     job.Podname,
@@ -489,7 +489,7 @@ func (d *Dao) GetSvcInstJobsByState(ID string, state apb.State) ([]apb.JobState,
 	} else {
 		for token, job := range bi.Status.Jobs {
 			if job.State == crd.ConvertStateToCRD(state) {
-				jobs = append(jobs, apb.JobState{
+				jobs = append(jobs, bundle.JobState{
 					Description: job.Description,
 					Method:      crd.ConvertJobMethodToAPB(job.Method),
 					Podname:     job.Podname,
@@ -509,7 +509,7 @@ func (d *Dao) IsNotFoundError(err error) bool {
 }
 
 // DeleteBinding - Delete the binding instance and remove the association with the service instance.
-func (d *Dao) DeleteBinding(bindingInstance apb.BindInstance, serviceInstance apb.ServiceInstance) error {
+func (d *Dao) DeleteBinding(bindingInstance bundle.BindInstance, serviceInstance bundle.ServiceInstance) error {
 	if err := d.DeleteBindInstance(bindingInstance.ID.String()); err != nil {
 		return err
 	}

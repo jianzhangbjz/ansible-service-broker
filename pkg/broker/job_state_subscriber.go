@@ -3,7 +3,7 @@ package broker
 import (
 	"fmt"
 
-	"github.com/automationbroker/bundle-lib/apb"
+	"github.com/automationbroker/bundle-lib/bundle"
 )
 
 // JobStateSubscriber is responsible for handling and persisting JobState changes
@@ -19,7 +19,7 @@ func NewJobStateSubscriber(dao SubscriberDAO) *JobStateSubscriber {
 }
 
 func isBinding(msg JobMsg) bool {
-	return msg.State.Method == apb.JobMethodBind || msg.State.Method == apb.JobMethodUnbind
+	return msg.State.Method == bundle.JobMethodBind || msg.State.Method == bundle.JobMethodUnbind
 }
 
 // ID is used as an identifier for the type of subscriber
@@ -38,7 +38,7 @@ func (jss *JobStateSubscriber) Notify(msg JobMsg) {
 		log.Errorf("Error JobStateSubscriber failed to set state after action %v completed with state %s err: %v", msg.State.Method, msg.State.State, err)
 		return
 	}
-	if msg.State.State == apb.StateSucceeded {
+	if msg.State.State == bundle.StateSucceeded {
 		if err := jss.handleSucceeded(msg); err != nil {
 			log.Errorf("Error after job succeeded : %v", err)
 			return
@@ -67,11 +67,11 @@ func (jss *JobStateSubscriber) Notify(msg JobMsg) {
 func (jss *JobStateSubscriber) handleSucceeded(msg JobMsg) error {
 	log.Debugf("JobStateSubscriber handleSucceeded : msg state %v ", msg.State)
 	switch msg.State.Method {
-	case apb.JobMethodDeprovision:
+	case bundle.JobMethodDeprovision:
 		if err := jss.cleanupAfterDeprovision(msg); err != nil {
 			return fmt.Errorf("Failed cleaning up deprovision after job succeeded, error: %v", err)
 		}
-	case apb.JobMethodUnbind:
+	case bundle.JobMethodUnbind:
 		if err := jss.cleanupAfterUnbind(msg); err != nil {
 			return fmt.Errorf("Failed cleaning up unbinding after job succeeded, error: %v", err)
 		}
@@ -82,7 +82,7 @@ func (jss *JobStateSubscriber) handleSucceeded(msg JobMsg) error {
 func (jss *JobStateSubscriber) cleanupAfterDeprovision(msg JobMsg) error {
 	log.Debugf("JobStateSubscriber cleanupAfterDeprovision : msg state %v ", msg.State)
 	if deleteErr := jss.dao.DeleteServiceInstance(msg.InstanceUUID); deleteErr != nil {
-		msg.State.State = apb.StateFailed
+		msg.State.State = bundle.StateFailed
 		if _, err := jss.dao.SetState(msg.InstanceUUID, msg.State); err != nil {
 			return fmt.Errorf("Error setting failed state after error : %s deleting service instance : %s", deleteErr, err)
 		}
@@ -95,7 +95,7 @@ func (jss *JobStateSubscriber) cleanupAfterUnbind(msg JobMsg) error {
 	log.Debugf("JobStateSubscriber cleanupAfterUnbind : msg state %v ", msg.State)
 	// util function to set the state to failed and ensure no error information is lost
 	var setFailed = func(failureErr error) error {
-		msg.State.State = apb.StateFailed
+		msg.State.State = bundle.StateFailed
 		if _, err := jss.dao.SetState(msg.InstanceUUID, msg.State); err != nil {
 			return fmt.Errorf("Error setting unbind state to failed after error %v occurred : %v during cleanup of unbind", failureErr, err)
 		}
