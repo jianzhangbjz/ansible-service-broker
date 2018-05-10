@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-package apb
+package bundle
 
 import (
 	"encoding/json"
@@ -146,6 +146,15 @@ type ExtractedCredentials struct {
 	Credentials map[string]interface{} `json:"credentials,omitempty"`
 }
 
+func buildExtractedCredentials(output []byte) (*ExtractedCredentials, error) {
+	creds := make(map[string]interface{})
+	err := json.Unmarshal(output, &creds)
+	if err != nil {
+		return nil, err
+	}
+	return &ExtractedCredentials{Credentials: creds}, nil
+}
+
 // State - Job State
 type State string
 
@@ -195,7 +204,7 @@ type ClusterConfig struct {
 	KeepNamespaceOnError bool   `yaml:"keep_namespace_on_error"`
 }
 
-// ClusterConfiguration that should be used by the abp package.
+// ClusterConfiguration that should be used by the apb package.
 var clusterConfig ClusterConfig
 
 // InitializeClusterConfig - initialize the cluster config.
@@ -213,10 +222,6 @@ const (
 	// StateFailed - Failed state
 	StateFailed State = "failed"
 
-	// 5s x 7200 retries, 2 hours
-	apbWatchInterval = 5
-	apbWatchRetries  = 7200
-
 	// ApbContainerName - The name of the apb container
 	ApbContainerName = "apb"
 
@@ -233,33 +238,33 @@ const (
 // SpecLogDump - log spec for debug
 func SpecLogDump(spec *Spec) {
 	log.Debug("============================================================")
-	log.Debug("Spec: %s", spec.ID)
+	log.Debugf("Spec: %s", spec.ID)
 	log.Debug("============================================================")
-	log.Debug("Name: %s", spec.FQName)
-	log.Debug("Image: %s", spec.Image)
-	log.Debug("Bindable: %t", spec.Bindable)
-	log.Debug("Description: %s", spec.Description)
-	log.Debug("Async: %s", spec.Async)
+	log.Debugf("Name: %s", spec.FQName)
+	log.Debugf("Image: %s", spec.Image)
+	log.Debugf("Bindable: %t", spec.Bindable)
+	log.Debugf("Description: %s", spec.Description)
+	log.Debugf("Async: %s", spec.Async)
 
 	for _, plan := range spec.Plans {
 		log.Debugf("Plan: %s", plan.Name)
 		for _, param := range plan.Parameters {
-			log.Debug("  Name: %#v", param.Name)
-			log.Debug("  Title: %s", param.Title)
-			log.Debug("  Type: %s", param.Type)
-			log.Debug("  Description: %s", param.Description)
-			log.Debug("  Default: %#v", param.Default)
-			log.Debug("  DeprecatedMaxlength: %d", param.DeprecatedMaxlength)
-			log.Debug("  MaxLength: %d", param.MaxLength)
-			log.Debug("  MinLength: %d", param.MinLength)
-			log.Debug("  Pattern: %s", param.Pattern)
-			log.Debug("  MultipleOf: %d", param.MultipleOf)
-			log.Debug("  Minimum: %#v", param.Minimum)
-			log.Debug("  Maximum: %#v", param.Maximum)
-			log.Debug("  ExclusiveMinimum: %#v", param.ExclusiveMinimum)
-			log.Debug("  ExclusiveMaximum: %#v", param.ExclusiveMaximum)
-			log.Debug("  Required: %s", param.Required)
-			log.Debug("  Enum: %v", param.Enum)
+			log.Debugf("  Name: %#v", param.Name)
+			log.Debugf("  Title: %s", param.Title)
+			log.Debugf("  Type: %s", param.Type)
+			log.Debugf("  Description: %s", param.Description)
+			log.Debugf("  Default: %#v", param.Default)
+			log.Debugf("  DeprecatedMaxlength: %d", param.DeprecatedMaxlength)
+			log.Debugf("  MaxLength: %d", param.MaxLength)
+			log.Debugf("  MinLength: %d", param.MinLength)
+			log.Debugf("  Pattern: %s", param.Pattern)
+			log.Debugf("  MultipleOf: %d", param.MultipleOf)
+			log.Debugf("  Minimum: %#v", param.Minimum)
+			log.Debugf("  Maximum: %#v", param.Maximum)
+			log.Debugf("  ExclusiveMinimum: %#v", param.ExclusiveMinimum)
+			log.Debugf("  ExclusiveMaximum: %#v", param.ExclusiveMaximum)
+			log.Debugf("  Required: %s", param.Required)
+			log.Debugf("  Enum: %v", param.Enum)
 		}
 	}
 }

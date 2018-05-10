@@ -44,20 +44,18 @@
   version = "0.1.2"
 
 [[projects]]
+  branch = "cherry-pick-fix"
   name = "github.com/automationbroker/bundle-lib"
   packages = [
-    "apb",
+    "bundle",
     "clients",
     "crd",
-    "origin/copy/authorization",
-    "origin/copy/user",
-    "origin/copy/user/validation",
     "registries",
     "registries/adapters",
     "runtime"
   ]
-  revision = "ee4a23415a7d6356ea4072e9894c53601c66abf2"
-  version = "0.1.5"
+  revision = "b169ced3d35069194d58b8e9c0f9159ee48f901b"
+  source = "github.com/shawn-hurley/bundle-lib"
 
 [[projects]]
   branch = "master"
@@ -373,7 +371,11 @@
 [[projects]]
   branch = "master"
   name = "github.com/openshift/api"
-  packages = ["network/v1"]
+  packages = [
+    "authorization/v1",
+    "network/v1",
+    "pkg/serialization"
+  ]
   revision = "dca24d1902afee9d2be02425a2d7c9f910063631"
 
 [[projects]]
@@ -924,6 +926,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ec45f8aae9030f4422019e0af5f9a39793f532beb467d9953baf8e8e9316847a"
+  inputs-digest = "bb5d6109700881ee879ee0697b8ab90b371d893a45d0753d24040f17aaa381ec"
   solver-name = "gps-cdcl"
   solver-version = 1

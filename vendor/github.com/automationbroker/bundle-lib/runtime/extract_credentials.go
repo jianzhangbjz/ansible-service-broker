@@ -1,31 +1,13 @@
-//
-// Copyright (c) 2018 Red Hat, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-
-package apb
+package runtime
 
 import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/automationbroker/bundle-lib/clients"
-	"github.com/automationbroker/bundle-lib/runtime"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -36,22 +18,23 @@ import (
 
 const (
 	// GatherCredentialsCommand - Command used when execing for bind credentials
-	// moving this constant here because eventually Extrating creds will
+	// moving this constant here because eventually Extracting creds will
 	// need to be moved to runtime. Therefore keeping all of this together
 	// makes sense
 	GatherCredentialsCommand = "broker-bind-creds"
+	bundleWatchInterval      = 5
+	bundleWatchRetries       = 7200
 )
 
-var (
-	// ErrExtractedCredentialsNotFound - Extracted Credentials are not found.
-	ErrExtractedCredentialsNotFound = fmt.Errorf("credentials not found")
-)
-
-type extractCreds func(string, string) (*ExtractedCredentials, error)
+// ExtractCredentialsFunc - the func that should be used to extract credentials
+// Params:
+// pod name - name of the container that the APB is running as
+// namespace - name of the namespace where the container is running.
+type extractCredentialsFunc func(string, string) ([]byte, error)
 
 // ExtractCredentials - Extract credentials from pod in a certain namespace.
 // needs the podname, namespace and the runtime version.
-func ExtractCredentials(podname string, ns string, runtime int) (*ExtractedCredentials, error) {
+func (p provider) ExtractCredentials(podname string, ns string, runtime int) ([]byte, error) {
 	extractCredsFunc, err := getExtractCreds(runtime)
 	if err != nil {
 		return nil, err
@@ -60,7 +43,7 @@ func ExtractCredentials(podname string, ns string, runtime int) (*ExtractedCrede
 }
 
 // ExtractCredentialsAsFile - Extract credentials from running APB using exec
-func ExtractCredentialsAsFile(podname string, namespace string) (*ExtractedCredentials, error) {
+func extractCredentialsAsFile(podname string, namespace string) ([]byte, error) {
 	k8scli, err := clients.Kubernetes()
 	if err != nil {
 		log.Errorf("error creating k8s client: %v", err)
@@ -101,7 +84,7 @@ func ExtractCredentialsAsFile(podname string, namespace string) (*ExtractedCrede
 		log.Errorf("error getting new remotecommand executor - %v", err)
 	}
 
-	for r := 1; r <= apbWatchRetries; r++ {
+	for r := 1; r <= bundleWatchRetries; r++ {
 		var stdoutBuffer, stderrBuffer bytes.Buffer
 		stdoutWriter := bufio.NewWriter(&stdoutBuffer)
 		stderrWriter := bufio.NewWriter(&stderrBuffer)
@@ -116,7 +99,7 @@ func ExtractCredentialsAsFile(podname string, namespace string) (*ExtractedCrede
 			if err != nil {
 				return nil, err
 			}
-			return buildExtractedCredentials(decodedOutput)
+			return decodedOutput, nil
 		}
 		//Get Pods to determine if the pod is still alive.
 		status, err := k8scli.GetPodStatus(podname, namespace)
@@ -137,14 +120,14 @@ func ExtractCredentialsAsFile(podname string, namespace string) (*ExtractedCrede
 			log.Infof("command output: %v - err: %v", stdoutBuffer.String(), stderrBuffer.String())
 			log.Infof("retry attempt: %v pod: %v in namespace: %v failed to exec into the container", r, podname, namespace)
 		}
-		time.Sleep(time.Duration(apbWatchInterval) * time.Second)
+		time.Sleep(time.Duration(bundleWatchInterval) * time.Second)
 	}
 
-	return nil, fmt.Errorf("[%s] ExecTimeout: Failed to gather bind credentials after %d retries", podname, apbWatchRetries)
+	return nil, fmt.Errorf("[%s] ExecTimeout: Failed to gather bind credentials after %d retries", podname, bundleWatchRetries)
 }
 
 // ExtractCredentialsAsSecret - Extract credentials from APB as secret in namespace.
-func ExtractCredentialsAsSecret(podname string, namespace string) (*ExtractedCredentials, error) {
+func extractCredentialsAsSecret(podname string, namespace string) ([]byte, error) {
 	k8s, err := clients.Kubernetes()
 	if err != nil {
 		return nil, fmt.Errorf("Unable to retrive kubernetes client - %v", err)
@@ -155,14 +138,15 @@ func ExtractCredentialsAsSecret(podname string, namespace string) (*ExtractedCre
 		return nil, fmt.Errorf("Unable to retrieve secret [ %v ] - %v", podname, err)
 	}
 
-	return buildExtractedCredentials(secret["fields"])
+	return secret["fields"], nil
 }
 
-func getExtractCreds(runtimeVersion int) (extractCreds, error) {
+func getExtractCreds(runtimeVersion int) (extractCredentialsFunc, error) {
 	if runtimeVersion == 1 {
-		return ExtractCredentialsAsFile, nil
+		log.Infof("Runtime version 1 is being deprecated.\nYou should move the Bundle to use the latest bundle base")
+		return extractCredentialsAsFile, nil
 	} else if runtimeVersion >= 2 {
-		return ExtractCredentialsAsSecret, nil
+		return extractCredentialsAsSecret, nil
 	} else {
 		return nil, fmt.Errorf(
 			"Unexpected runtime version [%v], support %v <= runtimeVersion <= %v",
@@ -171,14 +155,6 @@ func getExtractCreds(runtimeVersion int) (extractCreds, error) {
 			2,
 		)
 	}
-}
-
-func buildExtractedCredentials(output []byte) (*ExtractedCredentials, error) {
-
-	creds := make(map[string]interface{})
-	json.Unmarshal(output, &creds)
-
-	return &ExtractedCredentials{Credentials: creds}, nil
 }
 
 func decodeOutput(output []byte) ([]byte, error) {
@@ -190,32 +166,4 @@ func decodeOutput(output []byte) ([]byte, error) {
 	}
 
 	return decodedjson, nil
-}
-
-// GetExtractedCredentials - Will get the extracted credentials for a caller of the APB package.
-func GetExtractedCredentials(id string) (*ExtractedCredentials, error) {
-	creds, err := runtime.Provider.GetExtractedCredential(id, clusterConfig.Namespace)
-	if err != nil {
-		switch {
-		case err == runtime.ErrCredentialsNotFound:
-			log.Debugf("extracted credential secret not found - %v", id)
-			return nil, ErrExtractedCredentialsNotFound
-		default:
-			log.Errorf("unable to get the extracted credential secret - %v", err)
-			return nil, err
-		}
-	}
-	return &ExtractedCredentials{Credentials: creds}, nil
-}
-
-// DeleteExtractedCredentials - Will delete the extracted credentials for a caller of the APB package.
-// Please use this method with caution.
-func DeleteExtractedCredentials(id string) error {
-	return runtime.Provider.DeleteExtractedCredential(id, clusterConfig.Namespace)
-}
-
-// SetExtractedCredentials - Will set new credentials for an id.
-// Please use this method with caution.
-func SetExtractedCredentials(id string, creds *ExtractedCredentials) error {
-	return runtime.Provider.CreateExtractedCredential(id, clusterConfig.Namespace, creds.Credentials, nil)
 }

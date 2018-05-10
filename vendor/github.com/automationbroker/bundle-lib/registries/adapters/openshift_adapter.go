@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/automationbroker/bundle-lib/apb"
+	"github.com/automationbroker/bundle-lib/bundle"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -49,20 +49,20 @@ func (r OpenShiftAdapter) RegistryName() string {
 // GetImageNames - retrieve the images
 func (r OpenShiftAdapter) GetImageNames() ([]string, error) {
 	log.Debug("OpenShiftAdapter::GetImageNames")
-	log.Debug("BundleSpecLabel: %s", BundleSpecLabel)
+	log.Debugf("BundleSpecLabel: %s", BundleSpecLabel)
 
 	images := r.Config.Images
-	log.Debug("Configured to use images: %v", images)
+	log.Debugf("Configured to use images: %v", images)
 
 	return images, nil
 }
 
 // FetchSpecs - retrieve the spec for the image names.
-func (r OpenShiftAdapter) FetchSpecs(imageNames []string) ([]*apb.Spec, error) {
+func (r OpenShiftAdapter) FetchSpecs(imageNames []string) ([]*bundle.Spec, error) {
 	log.Debug("OpenShiftAdapter::FetchSpecs")
-	specs := []*apb.Spec{}
+	specs := []*bundle.Spec{}
 	for _, imageName := range imageNames {
-		log.Debug("%v", imageName)
+		log.Debugf("%v", imageName)
 		spec, err := r.loadSpec(imageName)
 		if err != nil {
 			log.Errorf("Failed to retrieve spec data for image %s - %v", imageName, err)
@@ -131,7 +131,7 @@ func (r OpenShiftAdapter) getOpenShiftAuthToken() (string, error) {
 	return tokenResp.Token, nil
 }
 
-func (r OpenShiftAdapter) loadSpec(imageName string) (*apb.Spec, error) {
+func (r OpenShiftAdapter) loadSpec(imageName string) (*bundle.Spec, error) {
 	log.Debug("OpenShiftAdapter::LoadSpec")
 	if r.Config.Tag == "" {
 		r.Config.Tag = "latest"

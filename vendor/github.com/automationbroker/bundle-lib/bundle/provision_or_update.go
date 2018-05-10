@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-package apb
+package bundle
 
 import (
 	"errors"
@@ -55,7 +55,7 @@ func (e *executor) provisionOrUpdate(method executionMethod, instance *ServiceIn
 	}
 
 	ns := instance.Context.Namespace
-	log.Info("Checking if namespace %s exists.", ns)
+	log.Infof("Checking if namespace %s exists.", ns)
 	_, err = k8scli.Client.CoreV1().Namespaces().Get(ns, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("Project %s does not exist", ns)
@@ -78,8 +78,7 @@ func (e *executor) provisionOrUpdate(method executionMethod, instance *ServiceIn
 
 	if instance.Spec.Runtime >= 2 || !instance.Spec.Bindable {
 		log.Debugf("watching pod for serviceinstance %#v", instance.Spec)
-		err := runtime.WatchPod(executionContext.PodName, executionContext.Namespace,
-			k8scli.Client.CoreV1().Pods(executionContext.Namespace), e.updateDescription)
+		err := runtime.Provider.WatchRunningBundle(executionContext.PodName, executionContext.Namespace, e.updateDescription)
 		if err != nil {
 			log.Errorf("Provision or Update action failed - %v", err)
 			return err
@@ -90,12 +89,17 @@ func (e *executor) provisionOrUpdate(method executionMethod, instance *ServiceIn
 		return nil
 	}
 
-	creds, err := ExtractCredentials(
+	credBytes, err := runtime.Provider.ExtractCredentials(
 		executionContext.PodName,
 		executionContext.Namespace,
 		instance.Spec.Runtime,
 	)
+	if err != nil {
+		log.Errorf("apb::%v error occurred - %v", method, err)
+		return err
+	}
 
+	creds, err := buildExtractedCredentials(credBytes)
 	if err != nil {
 		log.Errorf("apb::%v error occurred - %v", method, err)
 		return err

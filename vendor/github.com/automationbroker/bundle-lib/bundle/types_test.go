@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-package apb
+package bundle
 
 import (
 	"encoding/base64"
@@ -422,6 +422,15 @@ func TestBindInstanceNotEqual(t *testing.T) {
 			t.Errorf("bindings were equal for case: %s", key)
 		}
 	}
+}
+
+func TestBuildExtractedCredentials(t *testing.T) {
+	output := []byte(`{"db": "fusor_guestbook_db", "user": "duder_two", "pass" :"dog8two"}`)
+	bd, _ := buildExtractedCredentials(output)
+	ft.NotNil(t, bd, "credential is nil")
+	ft.Equal(t, bd.Credentials["db"], "fusor_guestbook_db", "db is not fusor_guestbook_db")
+	ft.Equal(t, bd.Credentials["user"], "duder_two", "user is not duder_two")
+	ft.Equal(t, bd.Credentials["pass"], "dog8two", "password is not dog8two")
 }
 
 func TestAlphaParser(t *testing.T) {
