@@ -386,6 +386,12 @@ func (a AnsibleBroker) Recover() (string, error) {
 			} else if rs.State.Method == apb.JobMethodDeprovision {
 				job = &DeprovisionJob{instance, false}
 				topic = DeprovisionTopic
+			} else if rs.State.Method == apb.JobMethodBind {
+				job = &BindJob{instance}
+				topic = BindingTopic
+			} else if rs.State.Method == apb.JobMethodUnbind {
+				job = &UnbindJob{instance}
+				topic = UnbindingTopic
 			} else {
 				log.Warningf(
 					"Attempted to recover job %s, but found an unrecognized "+
