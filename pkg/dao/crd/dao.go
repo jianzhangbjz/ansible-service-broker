@@ -442,6 +442,7 @@ func (d *Dao) FindJobStateByState(state apb.State) ([]apb.RecoverStatus, error) 
 	}
 
 	for _, bi := range bis.Items {
+		//bi.
 		for token, j := range bi.Status.Jobs {
 			if state == crd.ConvertStateToAPB(j.State) {
 				rss = append(rss,

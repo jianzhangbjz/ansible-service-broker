@@ -387,10 +387,10 @@ func (a AnsibleBroker) Recover() (string, error) {
 				job = &DeprovisionJob{instance, false}
 				topic = DeprovisionTopic
 			} else if rs.State.Method == apb.JobMethodBind {
-				job = &BindJob{instance}
+				job = &BindJob{nil, instance}
 				topic = BindingTopic
 			} else if rs.State.Method == apb.JobMethodUnbind {
-				job = &UnbindJob{instance}
+				job = &UnbindJob{nil, instance}
 				topic = UnbindingTopic
 			} else {
 				log.Warningf(

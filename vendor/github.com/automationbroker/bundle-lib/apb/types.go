@@ -366,8 +366,9 @@ func DumpJSON(obj interface{}) (string, error) {
 
 // RecoverStatus - Status of the recovery.
 type RecoverStatus struct {
-	InstanceID uuid.UUID `json:"id"`
-	State      JobState  `json:"state"`
+	InstanceID        uuid.UUID `json:"id"`
+	BindingInstanceID uuid.UUID `json:"binding_id"`
+	State             JobState  `json:"state"`
 }
 
 const (
